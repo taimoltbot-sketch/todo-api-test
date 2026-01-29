@@ -79,12 +79,12 @@ async def update_todo(todo_id: UUID, update: TodoUpdate) -> TodoResponse:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Todo not found"
         )
-    
+
     todo = todos_db[todo_id]
     update_data = update.model_dump(exclude_unset=True)
     updated_todo = todo.model_copy(update=update_data)
     todos_db[todo_id] = updated_todo
-    
+
     return TodoResponse.model_validate(updated_todo.model_dump())
 
 
@@ -96,7 +96,7 @@ async def delete_todo(todo_id: UUID) -> None:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Todo not found"
         )
-    
+
     del todos_db[todo_id]
 
 
