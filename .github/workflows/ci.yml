@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras
+
+      - name: Run Ruff (Lint)
+        run: |
+          uv run ruff check app/ tests/
+
+      - name: Run Ruff (Format Check)
+        run: |
+          uv run ruff format --check app/ tests/
+
+      - name: Run MyPy (Type Check)
+        run: |
+          uv run mypy app/ --ignore-missing-imports
+
+      - name: Run Tests with Coverage
+        run: |
+          uv run pytest --cov=app --cov-report=xml --cov-report=term-missing -v
+
+      - name: Upload Coverage Report
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install security tools
+        run: |
+          pip install bandit pip-audit
+
+      - name: Run Bandit (Security Linter)
+        run: |
+          bandit -r app/ -f json -o bandit-report.json || true
+          bandit -r app/ -ll
+
+      - name: Run pip-audit (Dependency Vulnerabilities)
+        run: |
+          pip-audit --require-hashes=false || true
+
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    needs: [test]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Build package
+        run: |
+          uv sync
+          echo "✅ Build successful"
+
+      - name: Test import
+        run: |
+          uv run python -c "from app.main import app; print('✅ Import successful')"

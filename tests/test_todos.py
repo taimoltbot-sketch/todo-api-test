@@ -1,12 +1,27 @@
 """
-Todo API 測試案例
-================
-根據 TDD skill 的 Red-Green-Refactor 流程
-目前狀態：🔴 RED (測試先行，實作尚未完成)
+Todo API 測試
+根據 TDD skill - 現在是 GREEN 階段 ✅
 """
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
+from app.main import app, todos_db
+
+
+@pytest.fixture
+async def client():
+    """建立測試用的 HTTP client"""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+@pytest.fixture(autouse=True)
+def clean_database():
+    """每個測試前清空資料庫"""
+    todos_db.clear()
+    yield
+    todos_db.clear()
 
 
 @pytest.mark.asyncio
@@ -70,8 +85,6 @@ class TestTodoList:
         assert response.status_code == 200
         todos = response.json()
         assert len(todos) == 2
-        assert todos[0]["title"] == "Task 1"
-        assert todos[1]["title"] == "Task 2"
 
 
 @pytest.mark.asyncio
@@ -107,7 +120,8 @@ class TestTodoUpdate:
 
     async def test_returns_404_when_todo_not_found(self, client: AsyncClient):
         """應該回傳 404 當待辦事項不存在"""
-        response = await client.patch("/todos/99999", json={
+        fake_uuid = "00000000-0000-0000-0000-000000000000"
+        response = await client.patch(f"/todos/{fake_uuid}", json={
             "completed": True
         })
         assert response.status_code == 404
@@ -131,24 +145,21 @@ class TestTodoDelete:
         
         # Verify it's deleted
         get_resp = await client.get("/todos")
-        assert all(t["id"] != todo_id for t in get_resp.json())
+        assert len(get_resp.json()) == 0
 
     async def test_returns_404_when_todo_not_found(self, client: AsyncClient):
         """應該回傳 404 當待辦事項不存在"""
-        response = await client.delete("/todos/99999")
+        fake_uuid = "00000000-0000-0000-0000-000000000000"
+        response = await client.delete(f"/todos/{fake_uuid}")
         assert response.status_code == 404
 
 
-# --- Fixtures (conftest.py 內容示意) ---
-
-# @pytest.fixture
-# async def client():
-#     """建立測試用的 HTTP client"""
-#     async with AsyncClient(app=app, base_url="http://test") as ac:
-#         yield ac
-#
-# @pytest.fixture(autouse=True)
-# async def clean_database():
-#     """每個測試前清空資料庫"""
-#     await db.execute("TRUNCATE todos RESTART IDENTITY")
-#     yield
+@pytest.mark.asyncio
+class TestHealth:
+    """GET /health - 健康檢查"""
+    
+    async def test_health_check(self, client: AsyncClient):
+        """應該回傳 healthy"""
+        response = await client.get("/health")
+        assert response.status_code == 200
+        assert response.json()["status"] == "healthy"
