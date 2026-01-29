@@ -73,7 +73,7 @@ jobs:
 
       - name: Run pip-audit (Dependency Vulnerabilities)
         run: |
-          pip-audit --require-hashes=false || true
+          pip-audit || true
 
   build:
     name: Build Check
