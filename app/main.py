@@ -4,6 +4,7 @@ Todo API - FastAPI 實作
 """
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, HTTPException, status
@@ -14,7 +15,7 @@ app = FastAPI(
 )
 
 # --- In-memory Database ---
-todos_db: dict[UUID, dict] = {}
+todos_db: dict[UUID, dict[str, Any]] = {}
 
 
 # --- Schemas ---
